@@ -8,23 +8,19 @@ import com.yupi.yuoj.judge.codesandbox.CodeSandFactory;
 import com.yupi.yuoj.judge.codesandbox.CodeSandboxProxy;
 import com.yupi.yuoj.judge.codesandbox.model.ExecuteCodeRequest;
 import com.yupi.yuoj.judge.codesandbox.model.ExecuteCodeResponse;
+import com.yupi.yuoj.judge.strategy.DefaultJudgeStrategy;
+import com.yupi.yuoj.judge.strategy.JudgeContext;
 import com.yupi.yuoj.model.dto.question.JudgeCase;
-import com.yupi.yuoj.model.dto.question.JudgeConfig;
 import com.yupi.yuoj.model.dto.questionsubmit.JudgeInfo;
 import com.yupi.yuoj.model.entity.Question;
 import com.yupi.yuoj.model.entity.QuestionSubmit;
-import com.yupi.yuoj.model.enums.JudgeInfoMessageEnum;
-import com.yupi.yuoj.model.enums.QuestionSubmitLanguageEnum;
 import com.yupi.yuoj.model.enums.QuestionSubmitStatusEnum;
-import com.yupi.yuoj.model.vo.QuestionVO;
 import com.yupi.yuoj.service.QuestionService;
 import com.yupi.yuoj.service.QuestionSubmitService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import javax.annotation.Resource;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -45,8 +41,11 @@ public class JudgeServiceImpl implements JudgeService {
     @Resource
     private QuestionSubmitService questionSubmitService;
 
+    @Resource
+    private JudgeManager judgeManager;
+
     @Override
-    public QuestionVO doJudge(long questionSubmitId) {
+    public QuestionSubmit doJudge(long questionSubmitId) {
         // 1. 根据这个id获取题目提交信息
         QuestionSubmit questionSubmit = questionSubmitService.getById(questionSubmitId);
         if (questionSubmit == null) {
@@ -69,7 +68,10 @@ public class JudgeServiceImpl implements JudgeService {
         questionSubmitUpdate.setId(questionSubmitId);
         questionSubmitUpdate.setStatus(QuestionSubmitStatusEnum.RUNNING.getValue());
         // 4.1 questionSubmitService.updateById() 方法通常是一个部分更新操作  原体数据更加安全
-        questionSubmitService.updateById(questionSubmitUpdate);
+        boolean update = questionSubmitService.updateById(questionSubmitUpdate);
+        if (!update) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目状态更新错误！");
+        }
 
         // 5. 代码沙箱
         // 5.1 获取一个代码沙箱
@@ -92,47 +94,30 @@ public class JudgeServiceImpl implements JudgeService {
                 .build();
         // 5.3.2 得到沙箱的执行结果
         ExecuteCodeResponse executeCodeResponse = codeSandBox.executeCode(executeCodeRequest);
+        List<String> outputList = executeCodeResponse.getOutputList();
+        // 6. 设置上下文进行传递
+        JudgeContext judgeContext = new JudgeContext();
+        judgeContext.setJudgeInfo(executeCodeResponse.getJudgeInfo());
+        judgeContext.setInputList(inputList);
+        judgeContext.setOutputList(outputList);
+        judgeContext.setJudgeCaseList(judgeCaseList);
+        judgeContext.setQuestion(question);
+        judgeContext.setQuestionSubmit(questionSubmit);
 
-    //     // 6. 进行结果校验
-    //     // 6.1 先默认一个状态
-    //     JudgeInfoMessageEnum judgeInfoMessageEnum = JudgeInfoMessageEnum.WAITING;
-    //     // 6.2 先判断数量是否相等
-    //     List<String> outputList = executeCodeResponse.getOutputList();
-    //     // 6.2.1 输出数量和输入数量不相等
-    //     if (outputList.size() != inputList.size()) {
-    //         judgeInfoMessageEnum = JudgeInfoMessageEnum.WRONG_ANSWER;
-    //         return null;
-    //     }
-    //
-    //     // 6.2.2 依次判断输出和预期输出是否相等
-    //     for (int i = 0; i < judgeCaseList.size(); i++) {
-    //         // 拿到原本的测试输出用例去比对沙箱的输出用例
-    //         JudgeCase judgeCase = judgeCaseList.get(i);
-    //         if (!judgeCase.getOutput().equals(outputList.get(i))) {
-    //             judgeInfoMessageEnum = JudgeInfoMessageEnum.WRONG_ANSWER;
-    //             return null;
-    //         }
-    //     }
-    //
-    //     // 7. 判断题目的限制条件
-    //     // 7.1 获取沙箱执行代码所用的内存和时间   可以判断其他的  todo
-    //     JudgeInfo judgeInfo = executeCodeResponse.getJudgeInfo();
-    //     Long memory = judgeInfo.getMemory();
-    //     Long time = judgeInfo.getTime();
-    //
-    //     // 7.2 拿到题目中的判题配置
-    //     String judgeConfigStr = question.getJudgeConfig();
-    //     JudgeConfig judgeConfig = JSONUtil.toBean(judgeConfigStr, JudgeConfig.class);
-    //     Long memoryLimit = judgeConfig.getMemoryLimit();
-    //     Long timeLimit = judgeConfig.getTimeLimit();
-    //     if (memory > memoryLimit) {
-    //         judgeInfoMessageEnum = JudgeInfoMessageEnum.MEMORY_LIMIT_EXCEEDED;
-    //         return null;
-    //     }
-    //     if (time > timeLimit) {
-    //         judgeInfoMessageEnum = JudgeInfoMessageEnum.TIME_LIMIT_EXCEEDED;
-    //         return null;
-    //     }
-        return null;
+        // 7. 将封装好的上下文传递给所需要的策略
+        JudgeInfo judgeInfo = judgeManager.doJudge(judgeContext);
+
+        // 8. 修改数据库中的判题结果  复用上述代码
+        questionSubmitUpdate = new QuestionSubmit();
+        questionSubmitUpdate.setId(questionSubmitId);
+        questionSubmitUpdate.setStatus(QuestionSubmitStatusEnum.SUCCEED.getValue());
+        questionSubmitUpdate.setJudgeInfo(JSONUtil.toJsonStr(judgeInfo));
+        update = questionSubmitService.updateById(questionSubmitUpdate);
+        if (!update) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "题目状态更新错误！");
+        }
+
+        QuestionSubmit questionSubmitResult = questionSubmitService.getById(questionSubmitId);
+        return questionSubmitResult;
     }
 }

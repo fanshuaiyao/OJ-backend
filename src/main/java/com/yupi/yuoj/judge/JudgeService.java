@@ -1,7 +1,6 @@
 package com.yupi.yuoj.judge;
 
-import com.yupi.yuoj.judge.codesandbox.model.ExecuteCodeResponse;
-import com.yupi.yuoj.model.vo.QuestionVO;
+import com.yupi.yuoj.model.entity.QuestionSubmit;
 
 /**
  * @author fanshuaiyao
@@ -13,5 +12,5 @@ public interface JudgeService {
     /**
      * 根据传入的提交id，获取题目，代码等，进行判题
      */
-    QuestionVO doJudge(long questionSubmitId);
+    QuestionSubmit doJudge(long questionSubmitId);
 }
