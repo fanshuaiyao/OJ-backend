@@ -1,6 +1,5 @@
 package com.yupi.yuoj.judge.codesandbox.model;
 
-import com.yupi.yuoj.model.dto.questionsubmit.JudgeInfo;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
