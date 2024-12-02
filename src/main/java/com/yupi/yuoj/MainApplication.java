@@ -18,7 +18,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @MapperScan("com.yupi.yuoj.mapper")
 @EnableScheduling
 @EnableAspectJAutoProxy(proxyTargetClass = true, exposeProxy = true)
-public class MainApplication {
+public class
+MainApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(MainApplication.class, args);

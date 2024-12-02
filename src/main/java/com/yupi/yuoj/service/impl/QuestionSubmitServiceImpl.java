@@ -103,13 +103,6 @@ public class QuestionSubmitServiceImpl extends ServiceImpl<QuestionSubmitMapper,
             judgeService.doJudge(questionSubmitId);
         });
         return questionSubmitId;
-        // 每个用户串行提交题目
-        // 锁必须要包裹住事务方法  为了防止用户重复提交，
-        // todo 用限流？？  现在只允许用户提交一条
-        // QuestionSubmitService questionSubmitService = (QuestionSubmitService) AopContext.currentProxy();
-        // synchronized (String.valueOf(userId).intern()) {
-        //     return questionSubmitService.doQuestionInner(userId, questionId);
-        // }
     }
 
     /**

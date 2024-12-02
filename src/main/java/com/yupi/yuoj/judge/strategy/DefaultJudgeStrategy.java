@@ -30,7 +30,6 @@ public class DefaultJudgeStrategy implements JudgeStrategy {
         // 拿到原本的测试输出用例去比对沙箱的输出用例
         List<String> inputList = judgeContext.getInputList();
         List<String> outputList = judgeContext.getOutputList();
-
         List<JudgeCase> judgeCaseList = judgeContext.getJudgeCaseList();
 
         //  先默认一个状态
