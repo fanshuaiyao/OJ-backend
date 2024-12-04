@@ -1,5 +1,7 @@
 package com.yupi.yuoj.service.impl;
 
+import cn.hutool.json.JSON;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -14,11 +16,13 @@ import com.yupi.yuoj.model.vo.QuestionVO;
 import com.yupi.yuoj.model.vo.UserVO;
 import com.yupi.yuoj.service.QuestionService;
 import com.yupi.yuoj.mapper.QuestionMapper;
+import com.yupi.yuoj.service.QuestionSubmitService;
 import com.yupi.yuoj.service.UserService;
 import com.yupi.yuoj.utils.SqlUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -38,6 +42,10 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
 
     @Resource
     private UserService userService;
+
+    @Lazy
+    @Resource
+    private QuestionSubmitService questionSubmitService;
 
     /**
      * @description: 校验题目是否合法
@@ -146,17 +154,37 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question>
         Map<Long, List<User>> userIdUserListMap = userService.listByIds(userIdSet).stream()
                 .collect(Collectors.groupingBy(User::getId));
 
+
+
         // 填充信息
         List<QuestionVO> questionVOList = questionList.stream().map(question -> {
             QuestionVO questionVO = QuestionVO.objToVo(question);
+            // 默认状态为未作
+            questionVO.setStatus(0L);
             Long userId = question.getUserId();
+            Long questionId = question.getId();
             User user = null;
             if (userIdUserListMap.containsKey(userId)) {
                 user = userIdUserListMap.get(userId).get(0);
             }
             questionVO.setUserVO(userService.getUserVO(user));
+
+            QueryWrapper<QuestionSubmit> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("userId", userId).eq("questionId", questionId);
+            List<QuestionSubmit> list = questionSubmitService.list(queryWrapper);
+            for (QuestionSubmit questionSubmit : list) {
+                String judgeInfo = questionSubmit.getJudgeInfo();
+                boolean success = StringUtils.contains(judgeInfo, "通过");
+                if (success) {
+                    questionVO.setStatus(1L);
+                }
+                break;
+            }
             return questionVO;
         }).collect(Collectors.toList());
+        for (QuestionVO questionVO : questionVOList) {
+            System.out.println("questionVO ===>>> " + questionVO);
+        }
         questionVOPage.setRecords(questionVOList);
         return questionVOPage;
     }

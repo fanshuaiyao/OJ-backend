@@ -27,6 +27,11 @@ public class QuestionVO implements Serializable {
     private Long id;
 
     /**
+     * id
+     */
+    private Long status;
+
+    /**
      * 标题
      */
     private String title;
