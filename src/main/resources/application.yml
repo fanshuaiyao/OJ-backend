@@ -12,7 +12,7 @@ spring:
   # session 配置
   session:
     # todo 取消注释开启分布式 session（须先配置 Redis）
-    # store-type: redis
+    store-type: redis
     # 30 天过期
     timeout: 2592000
   # 数据库配置
@@ -26,11 +26,19 @@ spring:
   # todo 需替换配置，然后取消注释
   redis:
     database: 1
-    host: localhost
-    username: root
+    host: 192.168.103.61
+    username: default
     port: 6379
-    timeout: 2592000
-    password: 123456
+#    password: 123456
+    timeout: 10000
+    lettuce:
+      pool:
+        max-active: 10
+        max-idle: 10
+        min-idle: 1
+        max-wait: -1
+    url: redis://123456@192.168.103.61:6379
+
   # Elasticsearch 配置
   # todo 需替换配置，然后取消注释
 #  elasticsearch:
@@ -42,9 +50,14 @@ spring:
     multipart:
       # 大小限制
       max-file-size: 10MB
+  freemarker:
+    check-template-location: false
+  devtools:
+    livereload:
+      enabled: false
 server:
   address: 0.0.0.0
-  port: 8121
+  port: 9090
   servlet:
     context-path: /api
     # cookie 30 天过期
@@ -93,3 +106,14 @@ cos:
 # 代码沙箱配置
 codesandbox:
   type: remote
+
+logging:
+  level:
+    root: info
+    org:
+      springframework:
+        data:
+          redis: debug
+    io:
+      lettuce:
+        core: debug
